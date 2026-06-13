@@ -342,7 +342,7 @@ function getFigureScale(width, height, silhouette, targetHeight = 0.95) {
 }
 
 function getLeftFigureBounds(width, height, silhouette) {
-  const scale = getFigureScale(width, height, silhouette, 0.88);
+  const scale = getFigureScale(width, height, silhouette, 0.78);
   const figureWidth = silhouette.mask.width * scale;
   const figureHeight = silhouette.mask.height * scale;
   return {
