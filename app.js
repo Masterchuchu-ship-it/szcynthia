@@ -337,12 +337,12 @@ function findDarkBounds(imageData, width, height) {
   };
 }
 
-function getFigureScale(width, height, silhouette) {
-  return Math.min((height * 0.95) / silhouette.mask.height, (width * 0.54) / silhouette.mask.width);
+function getFigureScale(width, height, silhouette, targetHeight = 0.95) {
+  return Math.min((height * targetHeight) / silhouette.mask.height, (width * 0.54) / silhouette.mask.width);
 }
 
 function getLeftFigureBounds(width, height, silhouette) {
-  const scale = getFigureScale(width, height, silhouette);
+  const scale = getFigureScale(width, height, silhouette, 0.88);
   const figureWidth = silhouette.mask.width * scale;
   const figureHeight = silhouette.mask.height * scale;
   return {
