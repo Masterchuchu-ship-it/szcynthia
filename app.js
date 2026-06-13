@@ -347,7 +347,7 @@ function getLeftFigureBounds(width, height, silhouette) {
   const figureHeight = silhouette.mask.height * scale;
   return {
     x: 0,
-    y: (height - figureHeight) * 0.5,
+    y: height - figureHeight,
     width: figureWidth,
     height: figureHeight,
   };
