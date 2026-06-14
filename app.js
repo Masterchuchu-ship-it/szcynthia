@@ -20,8 +20,8 @@ const layers = {
 };
 
 const silhouettes = {
-  left: createSilhouette("./assets/left-gradient-cropped.svg"),
-  right: createSilhouette("./assets/right-spiky-cropped.svg"),
+  left: createSilhouette("./assets/left-gradient-mask.jpg"),
+  right: createSilhouette("./assets/right-spiky-mask.jpg"),
 };
 
 function resizeCanvas() {
@@ -177,7 +177,10 @@ function drawGradientFigure(width, height) {
   fill.addColorStop(1, `hsl(${58 + pulse * 18}, 82%, 72%)`);
 
   const layer = prepareLayer(layers.left, bounds.width, bounds.height);
-  const layerCtx = resetLayerContext(layer);
+  const layerCtx = layer.getContext("2d");
+  layerCtx.globalCompositeOperation = "source-over";
+  layerCtx.globalAlpha = 1;
+  layerCtx.clearRect(0, 0, layer.width, layer.height);
   const layerFill = layerCtx.createLinearGradient(0, 0, bounds.width, bounds.height);
   layerFill.addColorStop(0, `hsl(${22 + pulse * 26}, 96%, 62%)`);
   layerFill.addColorStop(0.32, `hsl(${42 + pulse * 20}, 98%, 66%)`);
@@ -205,7 +208,7 @@ function drawGradientFigure(width, height) {
 
   layerCtx.globalCompositeOperation = "destination-in";
   layerCtx.globalAlpha = 1;
-  layerCtx.drawImage(silhouette.image, 0, 0, bounds.width, bounds.height);
+  layerCtx.drawImage(silhouette.mask, 0, 0, bounds.width, bounds.height);
 
   ctx.save();
   ctx.translate(movement, 0);
@@ -227,12 +230,15 @@ function drawSpikyFigure(width, height) {
   const scaledX = width - scaledWidth;
   const scaledY = bounds.y + (bounds.height - scaledHeight) * 0.5;
   const layer = prepareLayer(layers.right, scaledWidth, scaledHeight);
-  const layerCtx = resetLayerContext(layer);
+  const layerCtx = layer.getContext("2d");
+  layerCtx.globalCompositeOperation = "source-over";
+  layerCtx.globalAlpha = 1;
+  layerCtx.clearRect(0, 0, layer.width, layer.height);
 
   layerCtx.fillStyle = "#171713";
   layerCtx.fillRect(0, 0, scaledWidth, scaledHeight);
   layerCtx.globalCompositeOperation = "destination-in";
-  layerCtx.drawImage(silhouette.image, 0, 0, scaledWidth, scaledHeight);
+  layerCtx.drawImage(silhouette.mask, 0, 0, scaledWidth, scaledHeight);
 
   ctx.save();
   ctx.shadowColor = `rgba(22,22,17,${0.22 + bassEnergy * 0.32})`;
@@ -242,41 +248,52 @@ function drawSpikyFigure(width, height) {
 }
 
 function prepareLayer(layer, width, height) {
-  const pixelRatio = window.devicePixelRatio || 1;
-  const nextWidth = Math.max(1, Math.ceil(width * pixelRatio));
-  const nextHeight = Math.max(1, Math.ceil(height * pixelRatio));
+  const nextWidth = Math.max(1, Math.ceil(width));
+  const nextHeight = Math.max(1, Math.ceil(height));
   if (layer.width !== nextWidth || layer.height !== nextHeight) {
     layer.width = nextWidth;
     layer.height = nextHeight;
   }
-  layer.logicalWidth = width;
-  layer.logicalHeight = height;
-  layer.pixelRatio = pixelRatio;
   return layer;
-}
-
-function resetLayerContext(layer) {
-  const layerCtx = layer.getContext("2d");
-  const pixelRatio = layer.pixelRatio || 1;
-  layerCtx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  layerCtx.globalCompositeOperation = "source-over";
-  layerCtx.globalAlpha = 1;
-  layerCtx.clearRect(0, 0, layer.logicalWidth, layer.logicalHeight);
-  return layerCtx;
 }
 
 function createSilhouette(src) {
   const image = new Image();
   const silhouette = {
+    bounds: undefined,
     image,
+    mask: undefined,
     ready: false,
-    width: 1,
-    height: 1,
   };
 
   image.addEventListener("load", () => {
-    silhouette.width = image.naturalWidth || 1;
-    silhouette.height = image.naturalHeight || 1;
+    const sourceCanvas = document.createElement("canvas");
+    sourceCanvas.width = image.naturalWidth;
+    sourceCanvas.height = image.naturalHeight;
+    const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    sourceCtx.drawImage(image, 0, 0);
+
+    const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+    const bounds = findDarkBounds(imageData, sourceCanvas.width, sourceCanvas.height);
+    const mask = document.createElement("canvas");
+    mask.width = bounds.width;
+    mask.height = bounds.height;
+    const maskCtx = mask.getContext("2d", { willReadFrequently: true });
+    const cropped = sourceCtx.getImageData(bounds.x, bounds.y, bounds.width, bounds.height);
+    const { data } = cropped;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const luminance = data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722;
+      const alpha = Math.max(0, Math.min(255, (235 - luminance) * 3.6));
+      data[i] = 0;
+      data[i + 1] = 0;
+      data[i + 2] = 0;
+      data[i + 3] = alpha;
+    }
+
+    maskCtx.putImageData(cropped, 0, 0);
+    silhouette.bounds = bounds;
+    silhouette.mask = mask;
     silhouette.ready = true;
   });
 
@@ -288,14 +305,46 @@ function createSilhouette(src) {
   return silhouette;
 }
 
-function getFigureScale(width, height, silhouette) {
-  return Math.min((height * 0.78) / silhouette.height, (width * 0.38) / silhouette.width);
+function findDarkBounds(imageData, width, height) {
+  const { data } = imageData;
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4;
+      const luminance = data[index] * 0.2126 + data[index + 1] * 0.7152 + data[index + 2] * 0.0722;
+      if (luminance < 120) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+
+  if (minX > maxX || minY > maxY) {
+    return { x: 0, y: 0, width, height };
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
+}
+
+function getFigureScale(width, height, silhouette, targetHeight = 0.95) {
+  return Math.min((height * targetHeight) / silhouette.mask.height, (width * 0.54) / silhouette.mask.width);
 }
 
 function getLeftFigureBounds(width, height, silhouette) {
-  const scale = getFigureScale(width, height, silhouette);
-  const figureWidth = silhouette.width * scale;
-  const figureHeight = silhouette.height * scale;
+  const scale = getFigureScale(width, height, silhouette, 0.78);
+  const figureWidth = silhouette.mask.width * scale;
+  const figureHeight = silhouette.mask.height * scale;
   return {
     x: 0,
     y: height - figureHeight,
@@ -306,11 +355,11 @@ function getLeftFigureBounds(width, height, silhouette) {
 
 function getRightFigureBounds(width, height, silhouette) {
   const scale = getFigureScale(width, height, silhouette);
-  const figureWidth = silhouette.width * scale;
-  const figureHeight = silhouette.height * scale;
+  const figureWidth = silhouette.mask.width * scale;
+  const figureHeight = silhouette.mask.height * scale;
   return {
     x: width - figureWidth,
-    y: height - figureHeight,
+    y: (height - figureHeight) * 0.5,
     width: figureWidth,
     height: figureHeight,
   };

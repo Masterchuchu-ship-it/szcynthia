@@ -35,8 +35,10 @@ body {
 .preview-panel {
   position: relative;
   display: grid;
-  grid-template-rows: auto auto;
-  width: min(100%, 1400px, calc((100vh - clamp(96px, 11vw, 132px)) * 2));
+  grid-template-rows: minmax(0, 1fr) auto;
+  width: min(100%, 1400px);
+  height: min(900px, calc(100vh - clamp(28px, 4vw, 56px)));
+  min-height: 560px;
   overflow: hidden;
   border: 1px solid var(--line);
   background: #fff;
@@ -46,8 +48,8 @@ body {
 #visualizer {
   display: block;
   width: 100%;
-  height: auto;
-  aspect-ratio: 2 / 1;
+  height: 100%;
+  min-height: 0;
 }
 
 .controls {
@@ -100,7 +102,8 @@ button:disabled {
   }
 
   .preview-panel {
-    width: 100%;
+    min-height: 640px;
+    height: calc(100vh - 28px);
   }
 
   .controls {
