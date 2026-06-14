@@ -205,7 +205,7 @@ function drawGradientFigure(width, height) {
 
   layerCtx.globalCompositeOperation = "destination-in";
   layerCtx.globalAlpha = 1;
-  layerCtx.drawImage(silhouette.image, 0, 0, bounds.width, bounds.height);
+  layerCtx.drawImage(silhouette.mask, 0, 0, bounds.width, bounds.height);
 
   ctx.save();
   ctx.translate(movement, 0);
@@ -232,7 +232,7 @@ function drawSpikyFigure(width, height) {
   layerCtx.fillStyle = "#171713";
   layerCtx.fillRect(0, 0, scaledWidth, scaledHeight);
   layerCtx.globalCompositeOperation = "destination-in";
-  layerCtx.drawImage(silhouette.image, 0, 0, scaledWidth, scaledHeight);
+  layerCtx.drawImage(silhouette.mask, 0, 0, scaledWidth, scaledHeight);
 
   ctx.save();
   ctx.shadowColor = `rgba(22,22,17,${0.22 + bassEnergy * 0.32})`;
@@ -269,10 +269,27 @@ function createSilhouette(src) {
   const image = new Image();
   const silhouette = {
     image,
+    mask: undefined,
     ready: false,
   };
 
   image.addEventListener("load", () => {
+    const sourceSize = 1400;
+    const sourceCanvas = document.createElement("canvas");
+    sourceCanvas.width = sourceSize;
+    sourceCanvas.height = sourceSize;
+    const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    sourceCtx.drawImage(image, 0, 0, sourceSize, sourceSize);
+
+    const imageData = sourceCtx.getImageData(0, 0, sourceSize, sourceSize);
+    const bounds = findOpaqueBounds(imageData, sourceSize, sourceSize);
+    const cropped = sourceCtx.getImageData(bounds.x, bounds.y, bounds.width, bounds.height);
+    const mask = document.createElement("canvas");
+    mask.width = bounds.width;
+    mask.height = bounds.height;
+    mask.getContext("2d").putImageData(cropped, 0, 0);
+
+    silhouette.mask = mask;
     silhouette.ready = true;
   });
 
@@ -284,27 +301,62 @@ function createSilhouette(src) {
   return silhouette;
 }
 
-function getFigureSize(height) {
-  return height;
-}
+function findOpaqueBounds(imageData, width, height) {
+  const { data } = imageData;
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
 
-function getLeftFigureBounds(width, height) {
-  const figureSize = getFigureSize(height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4;
+      if (data[index + 3] > 12) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+
+  if (minX > maxX || minY > maxY) {
+    return { x: 0, y: 0, width, height };
+  }
+
   return {
-    x: 0,
-    y: height - figureSize,
-    width: figureSize,
-    height: figureSize,
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
   };
 }
 
-function getRightFigureBounds(width, height) {
-  const figureSize = getFigureSize(height);
+function getFigureScale(width, height, silhouette) {
+  return Math.min(height / silhouette.mask.height, (width * 0.48) / silhouette.mask.width);
+}
+
+function getLeftFigureBounds(width, height, silhouette) {
+  const scale = getFigureScale(width, height, silhouette);
+  const figureWidth = silhouette.mask.width * scale;
+  const figureHeight = silhouette.mask.height * scale;
   return {
-    x: width - figureSize,
-    y: height - figureSize,
-    width: figureSize,
-    height: figureSize,
+    x: 0,
+    y: height - figureHeight,
+    width: figureWidth,
+    height: figureHeight,
+  };
+}
+
+function getRightFigureBounds(width, height, silhouette) {
+  const scale = getFigureScale(width, height, silhouette);
+  const figureWidth = silhouette.mask.width * scale;
+  const figureHeight = silhouette.mask.height * scale;
+  return {
+    x: width - figureWidth,
+    y: height - figureHeight,
+    width: figureWidth,
+    height: figureHeight,
   };
 }
 
