@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Music Reaction Portrait</title>
-    <link rel="stylesheet" href="./styles.css?v=svg-silhouettes-hidpi" />
+    <link id="app-stylesheet" rel="stylesheet" href="./styles.css?v=wide-stage-svg" />
   </head>
   <body>
     <main class="app-shell">
@@ -20,6 +20,12 @@
         </div>
       </section>
     </main>
-    <script src="./app.js?v=svg-silhouettes-hidpi"></script>
+    <script>
+      const version = new URLSearchParams(window.location.search).get("v") || "wide-stage-svg";
+      document.getElementById("app-stylesheet").href = `./styles.css?v=${encodeURIComponent(version)}`;
+      const script = document.createElement("script");
+      script.src = `./app.js?v=${encodeURIComponent(version)}`;
+      document.body.appendChild(script);
+    </script>
   </body>
 </html>
