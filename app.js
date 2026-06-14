@@ -289,7 +289,7 @@ function createSilhouette(src) {
 }
 
 function getFigureScale(width, height, silhouette) {
-  return Math.min(height / silhouette.height, (width * 0.48) / silhouette.width);
+  return Math.min((height * 0.78) / silhouette.height, (width * 0.38) / silhouette.width);
 }
 
 function getLeftFigureBounds(width, height, silhouette) {

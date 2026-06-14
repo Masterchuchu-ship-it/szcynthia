@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Music Reaction Portrait</title>
-    <link id="app-stylesheet" rel="stylesheet" href="./styles.css?v=svg-cropped-assets" />
+    <link id="app-stylesheet" rel="stylesheet" href="./styles.css?v=svg-cropped-smaller" />
   </head>
   <body>
     <main class="app-shell">
@@ -21,7 +21,7 @@
       </section>
     </main>
     <script>
-      const version = new URLSearchParams(window.location.search).get("v") || "svg-cropped-assets";
+      const version = new URLSearchParams(window.location.search).get("v") || "svg-cropped-smaller";
       document.getElementById("app-stylesheet").href = `./styles.css?v=${encodeURIComponent(version)}`;
       const script = document.createElement("script");
       script.src = `./app.js?v=${encodeURIComponent(version)}`;
